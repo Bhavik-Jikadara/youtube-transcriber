@@ -1,59 +1,42 @@
-from youtube_transcript_api import YouTubeTranscriptApi
+from src.youtube_transcriber import YoutubeVideoSummarizer
 import os
-import google.generativeai as genai
 import streamlit as st
 from dotenv import load_dotenv
+
 load_dotenv()  # Load all the environment variables
 
-# API KEY
-genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
-
-
-prompt = "You are YouTube video summarizer. You will be taking the transcript text and summarizing the entire video and providing the important summary in points within 250 words. The transcript text will be appended here. Please provide the summary of the text given here: "
-
-
-# getting the transcript data from YouTube videos
-def extract_transcript_details(youtube_video_url):
-    try:
-        video_id = youtube_video_url.split("=")[1]
-        transcript_text = YouTubeTranscriptApi.get_transcript(
-            video_id=video_id)
-
-        transcript = ""
-        for i in transcript_text:
-            transcript += " " + i['text']
-        return transcript
-
-    except Exception as e:
-        return e
-
-
-# getting the summary based on Prompt from Google Gemini Pro model
-def generate_gemini_content(transcript_text, prompt):
-    model = genai.GenerativeModel("gemini-pro")
-    response = model.generate_content(prompt + transcript_text)
-    return response.text
-
-
-# _________________________ Stramlit Code _____________________________
-
 st.set_page_config(
-    page_title="YTtranscriber",
-    page_icon="./icon.png"
+    page_title="Youtube Summarizer",
+    page_icon="./assets/icon.png"
 )
-st.title("YouTube transcript to summary converter")
 
-youtube_link = st.text_input("Enter YouTube Video Link: ")
+def summary(video_url, api_key):
+    youtube_transcriber = YoutubeVideoSummarizer(video_url=video_url, api_key=api_key)
+    transcript = youtube_transcriber.extract_transcript()
+    summary = youtube_transcriber.generate_summary(transcript)
+    return summary
 
-if youtube_link:
-    video_id = youtube_link.split("=")[1]
-    st.image(
-        f"http://img.youtube.com/vi/{video_id}/0.jpg", use_column_width=True)
 
-if st.button("Get Detailed Notes"):
-    transcript_text = extract_transcript_details(youtube_link)
+def ui():
+    # Sidebar
+    with st.sidebar:
+        st.header("📝 About")
+        st.markdown("<hr>", unsafe_allow_html=True)
+        st.markdown("The **YouTube Transcript** is a powerful tool designed to help users quickly grasp the key points of a YouTube video without needing to watch the entire content.")
+        st.markdown("Sign up and get an API Key: [Google API Key](https://aistudio.google.com/app/apikey)")
+        api_key = st.text_input("API Key", type="password", placeholder="Enter Google API key", label_visibility="hidden")
 
-    if transcript_text:
-        summary = generate_gemini_content(transcript_text, prompt)
-        st.markdown("## Detailed Notes:")
-        st.write(summary)
+    with st.container():
+        with st.container(height=250):
+            st.title("Youtube Summarizer")
+            
+            video_url = st.text_input("YouTube Video URL", placeholder="Enter YouTube video URL", label_visibility="hidden")
+            if st.button("Summarize"):
+                response = summary(video_url, api_key=api_key)
+
+                st.subheader("Summary")
+                with st.container(height=600):
+                    st.markdown(response)
+
+if __name__ == "__main__":
+    ui()
